@@ -1,14 +1,11 @@
 package main
 
 import (
-	"aliyun-magic/service"
-	"fmt"
-	"os"
+	"aliyun-magic/collector"
+	//"aliyun-magic/service"
 )
 
 func main() {
-	fmt.Println("111")
-	fmt.Println(os.Getenv("AccessKeyID"))
-	fmt.Println(os.Getenv("JAVA_HOME"))
-	service.GetECSInfo("cn-zhangjiakou", 100)
+	//service.GetECSInfo("cn-zhangjiakou", 100)
+	collector.CollectECS()
 }

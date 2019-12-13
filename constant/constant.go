@@ -1,7 +1,10 @@
 package constant
 
 import (
+	"fmt"
 	"os"
+	"strconv"
+	"strings"
 )
 
 func GetPushGatewayAddress() string {
@@ -16,6 +19,23 @@ func GetAccessSecret() string {
 	return os.Getenv("AccessKeySecret")
 }
 
-func GetRegionId() string {
-	return os.Getenv("RegionID")
+func GetRegionId() []string {
+	tmp := os.Getenv("RegionID")
+	return strings.Split(tmp, ",")
+}
+
+func GetECSCollectorConcurrent() int {
+	concurrent, err := strconv.Atoi(os.Getenv("ECSCollectorConcurrent"))
+	if err != nil {
+		fmt.Println(err)
+	}
+	return concurrent
+}
+
+func GetECSCollectorPageSize() int {
+	pageSize, err := strconv.Atoi(os.Getenv("ECSCollectorPageSize"))
+	if err != nil {
+		fmt.Println(err)
+	}
+	return pageSize
 }

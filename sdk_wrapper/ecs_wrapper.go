@@ -50,9 +50,7 @@ func GetPrice(regionId string, instanceType string, priceUnit string, systemDisk
 	return response
 }
 
-func GetInstance(regionId string, pageSize int) *ecs.DescribeInstancesResponse {
-	fmt.Println("GetAccessKeyID:" + constant.GetAccessKeyID())
-	fmt.Println("GetAccessSecret:" + constant.GetAccessSecret())
+func GetInstance(regionId string, pageSize int, pageNum int) *ecs.DescribeInstancesResponse {
 	client, err := ecs.NewClientWithAccessKey(regionId, constant.GetAccessKeyID(), constant.GetAccessSecret())
 	if err != nil {
 		fmt.Println(err)
@@ -61,6 +59,7 @@ func GetInstance(regionId string, pageSize int) *ecs.DescribeInstancesResponse {
 	request := ecs.CreateDescribeInstancesRequest()
 	request.RegionId = regionId
 	request.PageSize = requests.NewInteger(pageSize)
+	request.PageNumber = requests.NewInteger(pageNum)
 
 	response, err := client.DescribeInstances(request)
 	if err != nil {
