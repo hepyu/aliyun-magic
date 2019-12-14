@@ -4,6 +4,7 @@ import (
 	"aliyun-magic/dto"
 	"aliyun-magic/sdk_wrapper"
 	"fmt"
+	"github.com/aliyun/alibaba-cloud-sdk-go/services/bssopenapi"
 	"github.com/aliyun/alibaba-cloud-sdk-go/services/ecs"
 )
 
@@ -41,11 +42,17 @@ func GetECSCostDTOArray(regionId string, pageSize int) []dto.ECSCostDTO {
 			}
 		}
 		fmt.Println(*ecsCostDTO.ResourceECSMarkInfo)
-		ecsCostDTO.Price = sdk_wrapper.GetPrice(regionId, ecsMarkInfo.InstanceType, "Month", 40).PriceInfo.Price.OriginalPrice
-		fmt.Println(ecsCostDTO.Price)
+		//ecsCostDTO.Price = sdk_wrapper.GetPrice(regionId, ecsMarkInfo.InstanceType, "Month", 40).PriceInfo.Price.OriginalPrice
+
+		moduleList := &[]bssopenapi.GetSubscriptionPriceModuleList{
+			{
+				ModuleCode: "InstanceType",
+				Config:     "InstanceType:" + ecsMarkInfo.InstanceType,
+			},
+		}
+		ecsCostDTO.Price = sdk_wrapper.GetSubscriptionPrice(regionId, ecsMarkInfo.InstanceId, "ecs", "NewOrder", "Month", 1, moduleList).Data.OriginalPrice
 
 		ecsCostDTOArray = append(ecsCostDTOArray, *ecsCostDTO)
-		//ecsDTO.ipAddr = instance.InnerIpAddress.
 	}
 	return ecsCostDTOArray
 }

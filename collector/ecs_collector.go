@@ -5,7 +5,7 @@ import (
 	//"aliyun-magic/dto"
 	"aliyun-magic/service"
 	"github.com/prometheus/client_golang/prometheus"
-	//"github.com/prometheus/client_golang/prometheus/push"
+	"github.com/prometheus/client_golang/prometheus/push"
 	//"runtime"
 	//"sync"
 	"fmt"
@@ -13,17 +13,17 @@ import (
 )
 
 var (
-	ecsCost = prometheus.NewGaugeVec(prometheus.GaugeOpts{
+	ecs_cost_by_neworder_per1month_data = prometheus.NewGaugeVec(prometheus.GaugeOpts{
 		Namespace: "ecs",
-		Name:      "ecs_cost",
+		Name:      "cost_by_neworder_per1month",
 		Help:      "ecs cost",
-	}, []string{"status", "regionId", "instanceId", "cpu", "memory", "dsNameEn", "instanceTypeFamily", "instanceName", "instanceType", "ipAddr", "applicant"})
+	}, []string{"status", "regionId", "instanceId", "instanceType", "applicant", "env", "serverType", "serverName", "owner", "businessLine", "project"})
 
-	ecsCpuUsage = prometheus.NewGaugeVec(prometheus.GaugeOpts{
+	ecsCpuUsageData = prometheus.NewGaugeVec(prometheus.GaugeOpts{
 		Namespace: "ecs",
-		Name:      "ecs_cpu_usage",
+		Name:      "cpu_usage",
 		Help:      "ecs cpu usage",
-	}, []string{"status", "regionId", "instanceId", "cpu", "memory", "dsNameEn", "instanceTypeFamily", "instanceName", "instanceType", "ipAddr", "applicant"})
+	}, []string{"status", "regionId", "instanceId", "instanceType", "applicant", "env", "serverType", "serverName", "owner", "businessLine", "project"})
 )
 
 func CollectECS() {
@@ -32,21 +32,31 @@ func CollectECS() {
 
 	collect = func() {
 		registry := prometheus.NewRegistry()
-		registry.MustRegister()
-		//pusher := push.New(constant.GetPushGatewayAddress(), "aliyun-ecs").Gatherer(registry)
+		registry.MustRegister(ecs_cost_by_neworder_per1month_data, ecsCpuUsageData)
+		pusher := push.New(constant.GetPushGatewayAddress(), "aliyun-ecs-stat").Gatherer(registry)
+
 		//runtime.GOMAXPROCS(constant.GetECSCollectorConcurrent())
 		regionIdArray := constant.GetRegionId()
 		pageSize := constant.GetECSCollectorPageSize()
 		for _, regionId := range regionIdArray {
 			instances := service.GetECSCostDTOArray(regionId, pageSize)
 			for _, tobj := range instances {
-				fmt.Println(tobj.ResourceECSMarkInfo)
+				ecsMarkInfo := tobj.ResourceECSMarkInfo
+				ecs_cost_by_neworder_per1month_data.WithLabelValues(ecsMarkInfo.Status, ecsMarkInfo.RegionId, ecsMarkInfo.InstanceId, ecsMarkInfo.InstanceType, ecsMarkInfo.Applicant, ecsMarkInfo.Env, ecsMarkInfo.ServerType, ecsMarkInfo.ServerName, ecsMarkInfo.Owner, ecsMarkInfo.BusinessLine, ecsMarkInfo.Project).Set(tobj.Price)
 			}
 		}
 		//waitGroup := sync.WaitGroup{}
 		//waitGroup.Add()
 
 		//waitGroup.Wait()
+
+		if err := pusher.Add(); err != nil {
+			fmt.Println("Could not push to Pushgateway:", err)
+		} else {
+
+			fmt.Println("success this time")
+		}
+
 		t = time.AfterFunc(time.Duration(1)*time.Second, collect)
 	}
 
