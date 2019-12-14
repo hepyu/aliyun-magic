@@ -8,8 +8,9 @@ import (
 	"github.com/aliyun/alibaba-cloud-sdk-go/services/ecs"
 )
 
-func GetECSCostDTOArray(regionId string, pageSize int) []dto.ECSCostDTO {
-	instances := getECSInfoArray(regionId, pageSize)
+//func GetECSCostDTOArray(regionId string, pageSize int) []dto.ECSCostDTO {
+func GetECSCostDTOArray(instances []ecs.Instance, regionId string, orderType string, month string) []dto.ECSCostDTO {
+	//instances := getECSInfoArray(regionId, pageSize)
 	//定义slice
 	var ecsCostDTOArray []dto.ECSCostDTO
 	//var ecsCostDTO dto.ECSCostDTO
@@ -50,14 +51,14 @@ func GetECSCostDTOArray(regionId string, pageSize int) []dto.ECSCostDTO {
 				Config:     "InstanceType:" + ecsMarkInfo.InstanceType,
 			},
 		}
-		ecsCostDTO.Price = sdk_wrapper.GetSubscriptionPrice(regionId, ecsMarkInfo.InstanceId, "ecs", "NewOrder", "Month", 1, moduleList).Data.OriginalPrice
+		ecsCostDTO.Price = sdk_wrapper.GetSubscriptionPrice(regionId, ecsMarkInfo.InstanceId, "ecs", orderType, month, 1, moduleList).Data.OriginalPrice
 
 		ecsCostDTOArray = append(ecsCostDTOArray, *ecsCostDTO)
 	}
 	return ecsCostDTOArray
 }
 
-func getECSInfoArray(regionId string, pageSize int) []ecs.Instance {
+func GetECSInfoArray(regionId string, pageSize int) []ecs.Instance {
 	//定义slice
 	var instances []ecs.Instance
 	for pageNum := 1; ; pageNum++ {

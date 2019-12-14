@@ -29,7 +29,6 @@ var (
 func CollectECS() {
 	var collect func()
 	var t *time.Timer
-
 	collect = func() {
 		registry := prometheus.NewRegistry()
 		registry.MustRegister(ecs_cost_by_neworder_per1month_data, ecsCpuUsageData)
@@ -39,11 +38,19 @@ func CollectECS() {
 		regionIdArray := constant.GetRegionId()
 		pageSize := constant.GetECSCollectorPageSize()
 		for _, regionId := range regionIdArray {
-			instances := service.GetECSCostDTOArray(regionId, pageSize)
-			for _, tobj := range instances {
+			//获取当前regionId的所有ecs机器
+			ecsInstances := service.GetECSInfoArray(regionId, pageSize)
+
+			//根据新购维度计算所有ecs的月成本
+			ecsCostDTOArray := service.GetECSCostDTOArray(ecsInstances, regionId, "NewOrder", "Month")
+			for _, tobj := range ecsCostDTOArray {
 				ecsMarkInfo := tobj.ResourceECSMarkInfo
 				ecs_cost_by_neworder_per1month_data.WithLabelValues(ecsMarkInfo.Status, ecsMarkInfo.RegionId, ecsMarkInfo.InstanceId, ecsMarkInfo.InstanceType, ecsMarkInfo.Applicant, ecsMarkInfo.Env, ecsMarkInfo.ServerType, ecsMarkInfo.ServerName, ecsMarkInfo.Owner, ecsMarkInfo.BusinessLine, ecsMarkInfo.Project).Set(tobj.Price)
 			}
+
+			//计算昨日cpu使用率的day95,即ecs_cpu_usage_lastday_p95
+
+			//计算昨日内存使用率的day95,即ecs_memory_usage_lastday_p95
 		}
 		//waitGroup := sync.WaitGroup{}
 		//waitGroup.Add()
