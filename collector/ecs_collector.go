@@ -39,9 +39,6 @@ func CollectECS() {
 		pageSize := constant.GetECSCollectorPageSize()
 		for _, regionId := range regionIdArray {
 			instances := service.GetECSCostDTOArray(regionId, pageSize)
-			fmt.Println(regionId)
-			fmt.Println(instances)
-			fmt.Println(len(instances))
 			for _, tobj := range instances {
 				fmt.Println(tobj.ResourceECSMarkInfo)
 			}

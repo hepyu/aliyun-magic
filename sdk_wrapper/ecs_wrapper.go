@@ -30,6 +30,9 @@ func GetInstanceMonitorData(regionId string, instanceId string, startTime string
 
 func GetPrice(regionId string, instanceType string, priceUnit string, systemDiskSize int) *ecs.DescribePriceResponse {
 
+	fmt.Println(constant.GetAccessKeyID())
+	fmt.Println(constant.GetAccessSecret())
+
 	client, err := ecs.NewClientWithAccessKey(regionId, constant.GetAccessKeyID(), constant.GetAccessSecret())
 	if err != nil {
 		fmt.Println(err)
@@ -42,8 +45,12 @@ func GetPrice(regionId string, instanceType string, priceUnit string, systemDisk
 	request.PriceUnit = priceUnit
 	request.SystemDiskSize = requests.NewInteger(systemDiskSize)
 
+	fmt.Println(regionId)
+	fmt.Println(request)
+
 	response, err := client.DescribePrice(request)
 	if err != nil {
+		fmt.Println("here")
 		fmt.Println(err)
 	}
 
@@ -65,5 +72,23 @@ func GetInstance(regionId string, pageSize int, pageNum int) *ecs.DescribeInstan
 	if err != nil {
 		fmt.Println(err)
 	}
+	return response
+}
+
+func GetDisks(regionId string, instanceId string) *ecs.DescribeDisksResponse {
+	client, err := ecs.NewClientWithAccessKey(regionId, constant.GetAccessKeyID(), constant.GetAccessSecret())
+	if err != nil {
+		fmt.Println(err)
+	}
+
+	request := ecs.CreateDescribeDisksRequest()
+	//request.AcceptFormat = "json"
+	request.InstanceId = instanceId
+
+	response, err := client.DescribeDisks(request)
+	if err != nil {
+		fmt.Println(err)
+	}
+
 	return response
 }

@@ -3,6 +3,7 @@ package service
 import (
 	"aliyun-magic/dto"
 	"aliyun-magic/sdk_wrapper"
+	"fmt"
 	"github.com/aliyun/alibaba-cloud-sdk-go/services/ecs"
 )
 
@@ -39,6 +40,10 @@ func GetECSCostDTOArray(regionId string, pageSize int) []dto.ECSCostDTO {
 				ecsMarkInfo.Project = tag.TagValue
 			}
 		}
+		fmt.Println(*ecsCostDTO.ResourceECSMarkInfo)
+		ecsCostDTO.Price = sdk_wrapper.GetPrice(regionId, ecsMarkInfo.InstanceType, "Month", 40).PriceInfo.Price.OriginalPrice
+		fmt.Println(ecsCostDTO.Price)
+
 		ecsCostDTOArray = append(ecsCostDTOArray, *ecsCostDTO)
 		//ecsDTO.ipAddr = instance.InnerIpAddress.
 	}
