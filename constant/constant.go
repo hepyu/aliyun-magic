@@ -7,6 +7,24 @@ import (
 	"strings"
 )
 
+type ECSSubResourceType string
+
+const (
+	ECSCPU    ECSSubResourceType = "cpu"
+	ECSMemory ECSSubResourceType = "memory"
+)
+
+type PX string
+
+const (
+	PXMax PX = "max"
+	PXMin PX = "min"
+	PXP99 PX = "99"
+	PXP95 PX = "95"
+	PXP90 PX = "90"
+	PXP50 PX = "50"
+)
+
 func GetPushGatewayAddress() string {
 	return os.Getenv("PushGatewayAddress")
 }

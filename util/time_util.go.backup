@@ -1,0 +1,73 @@
+package util
+
+import (
+	"fmt"
+	"time"
+)
+
+const MINUTES_OF_DAY = 24 * 60
+
+func GetTimePeriod(date time.Time, periodCount int) []string {
+	if MINUTES_OF_DAY%periodCount != 0 {
+		fmt.Println("MINUTES_OF_DAY % periodCount !=0")
+		panic("MINUTES_OF_DAY % periodCount !=0")
+	}
+
+	timeStr := date.Format("2006-01-02")
+	standardDate, err = time.ParseInLocation("2006-01-02 15:04:05", timeStr+" 00:00:00", time.UTC)
+	if err != nil {
+		fmt.Println(err)
+	}
+
+	//定义Slice
+	var timePeriodArray []string
+
+	minutes = MINUTES_OF_DAY / periodCount
+	for i := 0; i < periodCount; i++ {
+		endTime := startTime.Add(time.Duration(minutes) * time.Minute)
+		startTimeStr := startTime.Format("2006-01-02T 15:04:05Z")
+		endTimeStr := endTime.Format("2006-01-02T 15:04:05Z")
+		timePeriodArray = append(timePeriodArray, startTimeStr+","+endTimeStr)
+		startTime = endTime
+	}
+	return timePeriodArray
+}
+
+func GetYesterdayTimePeriod() []string {
+	timeStr := time.Now().Format("2006-01-02")
+	today, _ := time.ParseInLocation("2006-01-02 15:04:05", timeStr+" 00:00:00", time.UTC)
+
+	yesterday := today.AddDate(0, 0, -1)
+	startTimeStr := yesterday.Format("2006-01-02T 15:04:05Z")
+	endTimeStr := yesterday.AddDate(0, 0, 1).Format("2006-01-02T 15:04:05Z")
+
+	return []string{startTimeStr, endTimeStr}
+}
+
+func GetYesterday288TimePeriod() []string {
+	timeStr := time.Now().Format("2006-01-02")
+
+	//使用Parse 默认获取为UTC时区 需要获取本地时区 所以使用ParseInLocationt, _ := time.ParseInLocation("2006-01-02 15:04:05", timeStr+" 23:59:59", time.UTC)
+	//获得今日00:00:00的时间
+	today, _ := time.ParseInLocation("2006-01-02 15:04:05", timeStr+" 00:00:00", time.UTC)
+
+	yesterday := today.AddDate(0, 0, -1)
+
+	return get288TimePeriod(yesterday)
+}
+
+func get288TimePeriod(dayTime time.Time) []string {
+
+	//定义Slice
+	var timePeriodArray []string
+
+	startTime := dayTime
+	for i := 0; i < 288; i++ {
+		endTime := startTime.Add(time.Duration(5) * time.Minute)
+		startTimeStr := startTime.Format("2006-01-02T 15:04:05Z")
+		endTimeStr := endTime.Format("2006-01-02T 15:04:05Z")
+		timePeriodArray = append(timePeriodArray, startTimeStr+","+endTimeStr)
+		startTime = endTime
+	}
+	return timePeriodArray
+}
