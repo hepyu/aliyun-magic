@@ -53,38 +53,10 @@ func GetECSSubResourceUsagePXByYesterday(regionId string, instances []ecs.Instan
 			}
 		}
 
-		size := len(instanceMonitorData)
 		for _, subType := range ecsSubResourceTypes {
+			//目前只实现了CPU
 			if subType == constant.ECSCPU {
-				sort.Sort(aliyun_struct_wrapper.ECSInstanceMonitorDataWrapper{instanceMonitorData, func(p, q *ecs.InstanceMonitorData) bool {
-					return p.CPU < q.CPU
-				}})
-
-				cpuUsagePXDTO := new(dto.ECSSubResourceUsagePXDTO)
-				pxDTO := new(dto.PXDTO)
-				for _, px := range pxes {
-					if px == constant.PXMax {
-						pxDTO.MAX = float64(instanceMonitorData[size-1].CPU) * float64(0.01)
-					} else if px == constant.PXMin {
-						pxDTO.MIN = float64(instanceMonitorData[0].CPU) * float64(0.01)
-					} else if px == constant.PXP50 {
-						index := int(math.Ceil(float64(size) * float64(0.5)))
-						pxDTO.P50 = float64(instanceMonitorData[index].CPU) * float64(0.01)
-					} else if px == constant.PXP90 {
-						index := int(math.Ceil(float64(size) * float64(0.9)))
-						pxDTO.P90 = float64(instanceMonitorData[index].CPU) * float64(0.01)
-					} else if px == constant.PXP95 {
-						index := int(math.Ceil(float64(size) * float64(0.95)))
-						pxDTO.P95 = float64(instanceMonitorData[index].CPU) * float64(0.01)
-					} else if px == constant.PXP99 {
-						index := int(math.Ceil(float64(size) * float64(0.99)))
-						pxDTO.P99 = float64(instanceMonitorData[index].CPU) * float64(0.01)
-					}
-				}
-				cpuUsagePXDTO.ResourceECSMarkInfo = getECSMarkInfo(instance, regionId)
-				cpuUsagePXDTO.ResourcePX = pxDTO
-				cpuUsagePXDTO.SubResourceType = constant.ECSCPU
-
+				cpuUsagePXDTO := getECSResourcePXMonitorData(pxes, instanceMonitorData, instance, regionId)
 				result = append(result, *cpuUsagePXDTO)
 			}
 		}
@@ -138,4 +110,39 @@ func getECSMarkInfo(instance ecs.Instance, regionId string) *dto.ResourceECSMark
 		}
 	}
 	return ecsMarkInfo
+}
+
+func getECSResourcePXMonitorData(pxes []constant.PX, instanceMonitorData []ecs.InstanceMonitorData, instance ecs.Instance, regionId string) *dto.ECSSubResourceUsagePXDTO {
+	size := len(instanceMonitorData)
+
+	sort.Sort(aliyun_struct_wrapper.ECSInstanceMonitorDataWrapper{instanceMonitorData, func(p, q *ecs.InstanceMonitorData) bool {
+		return p.CPU < q.CPU
+	}})
+
+	cpuUsagePXDTO := new(dto.ECSSubResourceUsagePXDTO)
+	pxDTO := new(dto.PXDTO)
+	for _, px := range pxes {
+		if px == constant.PXMax {
+			pxDTO.MAX = float64(instanceMonitorData[size-1].CPU) * float64(0.01)
+		} else if px == constant.PXMin {
+			pxDTO.MIN = float64(instanceMonitorData[0].CPU) * float64(0.01)
+		} else if px == constant.PXP50 {
+			index := int(math.Ceil(float64(size) * float64(0.5)))
+			pxDTO.P50 = float64(instanceMonitorData[index].CPU) * float64(0.01)
+		} else if px == constant.PXP90 {
+			index := int(math.Ceil(float64(size) * float64(0.9)))
+			pxDTO.P90 = float64(instanceMonitorData[index].CPU) * float64(0.01)
+		} else if px == constant.PXP95 {
+			index := int(math.Ceil(float64(size) * float64(0.95)))
+			pxDTO.P95 = float64(instanceMonitorData[index].CPU) * float64(0.01)
+		} else if px == constant.PXP99 {
+			index := int(math.Ceil(float64(size) * float64(0.99)))
+			pxDTO.P99 = float64(instanceMonitorData[index].CPU) * float64(0.01)
+		}
+	}
+	cpuUsagePXDTO.ResourceECSMarkInfo = getECSMarkInfo(instance, regionId)
+	cpuUsagePXDTO.ResourcePX = pxDTO
+	cpuUsagePXDTO.SubResourceType = constant.ECSCPU
+
+	return cpuUsagePXDTO
 }
