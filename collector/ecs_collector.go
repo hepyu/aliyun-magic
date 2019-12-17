@@ -4,13 +4,13 @@ import (
 	"aliyun-magic/constant"
 	//"aliyun-magic/dto"
 	"aliyun-magic/service"
+	"github.com/aliyun/alibaba-cloud-sdk-go/services/ecs"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/push"
 	//"github.com/robfig/cron"
-	//"runtime"
-	//"sync"
 	"fmt"
-	"time"
+	"runtime"
+	"sync"
 )
 
 var (
@@ -46,63 +46,64 @@ var (
 )
 
 func CollectECS() {
-	var collect func()
-	var t *time.Timer
-	collect = func() {
-		registry := prometheus.NewRegistry()
-		registry.MustRegister(ecs_cost_by_neworder_per1month_data, ecs_cpu_usage_p50_data, ecs_cpu_usage_p90_data, ecs_cpu_usage_p95_data, ecs_cpu_usage_p99_data)
-		pusher := push.New(constant.GetPushGatewayAddress(), "aliyun-ecs-stat").Gatherer(registry)
+	registry := prometheus.NewRegistry()
+	registry.MustRegister(ecs_cost_by_neworder_per1month_data, ecs_cpu_usage_p50_data, ecs_cpu_usage_p90_data, ecs_cpu_usage_p95_data, ecs_cpu_usage_p99_data)
+	pusher := push.New(constant.GetPushGatewayAddress(), "aliyun-ecs-stat").Gatherer(registry)
 
-		//runtime.GOMAXPROCS(constant.GetECSCollectorConcurrent())
-		regionIdArray := constant.GetRegionId()
-		pageSize := constant.GetECSCollectorPageSize()
-		for _, regionId := range regionIdArray {
-			//获取当前regionId的所有ecs机器
-			ecsInstances := service.GetECSInfoArray(regionId, pageSize)
+	regionIdArray := constant.GetRegionId()
+	pageSize := constant.GetECSCollectorPageSize()
 
-			//根据新购维度计算所有ecs的月成本
-			ecsCostDTOArray := service.GetECSCostDTOArray(ecsInstances, regionId, "NewOrder", "Month")
-			for _, tobj := range ecsCostDTOArray {
-				ecsMarkInfo := tobj.ResourceECSMarkInfo
-				ecs_cost_by_neworder_per1month_data.WithLabelValues(ecsMarkInfo.Status, ecsMarkInfo.RegionId, ecsMarkInfo.InstanceId, ecsMarkInfo.InstanceType, ecsMarkInfo.Applicant, ecsMarkInfo.Env, ecsMarkInfo.ServerType, ecsMarkInfo.ServerName, ecsMarkInfo.Owner, ecsMarkInfo.BusinessLine, ecsMarkInfo.Project).Set(tobj.Price)
-			}
+	//设置最大并发
+	runtime.GOMAXPROCS(constant.GetECSCollectorConcurrent())
 
-			//计算昨日cpu使用率的day95,即ecs_cpu_usage_lastday_p95
-			//定义Slice
-			var ecsSubResourceTypes = []constant.ECSSubResourceType{constant.ECSCPU, constant.ECSMemory}
-			var pxes = []constant.PX{constant.PXMax, constant.PXMin, constant.PXP99, constant.PXP95, constant.PXP90, constant.PXP50}
+	for _, regionId := range regionIdArray {
+		//获取当前regionId的所有ecs机器
+		ecsInstances := service.GetECSInfoArray(regionId, pageSize)
 
-			ecsSubResourceUsageArray := service.GetECSSubResourceUsagePXByYesterday(regionId, ecsInstances, ecsSubResourceTypes, pxes)
-			for _, obj := range ecsSubResourceUsageArray {
-				if obj.SubResourceType == constant.ECSCPU {
-					pxDTO := obj.ResourcePX
-					ecsMarkInfo := obj.ResourceECSMarkInfo
-					ecs_cpu_usage_p50_data.WithLabelValues(ecsMarkInfo.Status, ecsMarkInfo.RegionId, ecsMarkInfo.InstanceId, ecsMarkInfo.InstanceType, ecsMarkInfo.Applicant, ecsMarkInfo.Env, ecsMarkInfo.ServerType, ecsMarkInfo.ServerName, ecsMarkInfo.Owner, ecsMarkInfo.BusinessLine, ecsMarkInfo.Project).Set(pxDTO.P50)
-					ecs_cpu_usage_p90_data.WithLabelValues(ecsMarkInfo.Status, ecsMarkInfo.RegionId, ecsMarkInfo.InstanceId, ecsMarkInfo.InstanceType, ecsMarkInfo.Applicant, ecsMarkInfo.Env, ecsMarkInfo.ServerType, ecsMarkInfo.ServerName, ecsMarkInfo.Owner, ecsMarkInfo.BusinessLine, ecsMarkInfo.Project).Set(pxDTO.P90)
-					ecs_cpu_usage_p95_data.WithLabelValues(ecsMarkInfo.Status, ecsMarkInfo.RegionId, ecsMarkInfo.InstanceId, ecsMarkInfo.InstanceType, ecsMarkInfo.Applicant, ecsMarkInfo.Env, ecsMarkInfo.ServerType, ecsMarkInfo.ServerName, ecsMarkInfo.Owner, ecsMarkInfo.BusinessLine, ecsMarkInfo.Project).Set(pxDTO.P95)
-					ecs_cpu_usage_p99_data.WithLabelValues(ecsMarkInfo.Status, ecsMarkInfo.RegionId, ecsMarkInfo.InstanceId, ecsMarkInfo.InstanceType, ecsMarkInfo.Applicant, ecsMarkInfo.Env, ecsMarkInfo.ServerType, ecsMarkInfo.ServerName, ecsMarkInfo.Owner, ecsMarkInfo.BusinessLine, ecsMarkInfo.Project).Set(pxDTO.P99)
-				}
-			}
+		waitGroup := sync.WaitGroup{}
+		waitGroup.Add(2)
 
-			//计算昨日内存使用率的day95,即ecs_memory_usage_lastday_p95
-		}
-		//waitGroup := sync.WaitGroup{}
-		//waitGroup.Add()
-
-		//waitGroup.Wait()
-
-		if err := pusher.Add(); err != nil {
-			fmt.Println("Could not push to Pushgateway:", err)
-		} else {
-
-			fmt.Println("success this time")
-		}
-
-		t = time.AfterFunc(time.Duration(1)*time.Second, collect)
+		go collect_ecs_cost(&waitGroup, regionId, ecsInstances)
+		go collect_ecs_sub_resource_px(&waitGroup, regionId, ecsInstances)
+		waitGroup.Wait()
 	}
 
-	t = time.AfterFunc(time.Duration(1)*time.Second, collect)
+	if err := pusher.Add(); err != nil {
+		fmt.Println("Could not push to Pushgateway:", err)
+	} else {
 
-	defer t.Stop()
-	time.Sleep(time.Minute)
+		fmt.Println("success this time")
+	}
+
+}
+
+func collect_ecs_cost(wg *sync.WaitGroup, regionId string, ecsInstances []ecs.Instance) {
+	//根据新购维度计算所有ecs的月成本
+	ecsCostDTOArray := service.GetECSCostDTOArray(ecsInstances, regionId, "NewOrder", "Month")
+	for _, tobj := range ecsCostDTOArray {
+		ecsMarkInfo := tobj.ResourceECSMarkInfo
+		ecs_cost_by_neworder_per1month_data.WithLabelValues(ecsMarkInfo.Status, ecsMarkInfo.RegionId, ecsMarkInfo.InstanceId, ecsMarkInfo.InstanceType, ecsMarkInfo.Applicant, ecsMarkInfo.Env, ecsMarkInfo.ServerType, ecsMarkInfo.ServerName, ecsMarkInfo.Owner, ecsMarkInfo.BusinessLine, ecsMarkInfo.Project).Set(tobj.Price)
+	}
+	wg.Done()
+}
+
+func collect_ecs_sub_resource_px(wg *sync.WaitGroup, regionId string, ecsInstances []ecs.Instance) {
+	//计算昨日cpu使用率的day95,即ecs_cpu_usage_lastday_p95
+	//定义Slice
+	var ecsSubResourceTypes = []constant.ECSSubResourceType{constant.ECSCPU, constant.ECSMemory}
+	var pxes = []constant.PX{constant.PXMax, constant.PXMin, constant.PXP99, constant.PXP95, constant.PXP90, constant.PXP50}
+
+	ecsSubResourceUsageArray := service.GetECSSubResourceUsagePXByYesterday(regionId, ecsInstances, ecsSubResourceTypes, pxes)
+	for _, obj := range ecsSubResourceUsageArray {
+		if obj.SubResourceType == constant.ECSCPU {
+			pxDTO := obj.ResourcePX
+			ecsMarkInfo := obj.ResourceECSMarkInfo
+			ecs_cpu_usage_p50_data.WithLabelValues(ecsMarkInfo.Status, ecsMarkInfo.RegionId, ecsMarkInfo.InstanceId, ecsMarkInfo.InstanceType, ecsMarkInfo.Applicant, ecsMarkInfo.Env, ecsMarkInfo.ServerType, ecsMarkInfo.ServerName, ecsMarkInfo.Owner, ecsMarkInfo.BusinessLine, ecsMarkInfo.Project).Set(pxDTO.P50)
+			ecs_cpu_usage_p90_data.WithLabelValues(ecsMarkInfo.Status, ecsMarkInfo.RegionId, ecsMarkInfo.InstanceId, ecsMarkInfo.InstanceType, ecsMarkInfo.Applicant, ecsMarkInfo.Env, ecsMarkInfo.ServerType, ecsMarkInfo.ServerName, ecsMarkInfo.Owner, ecsMarkInfo.BusinessLine, ecsMarkInfo.Project).Set(pxDTO.P90)
+			ecs_cpu_usage_p95_data.WithLabelValues(ecsMarkInfo.Status, ecsMarkInfo.RegionId, ecsMarkInfo.InstanceId, ecsMarkInfo.InstanceType, ecsMarkInfo.Applicant, ecsMarkInfo.Env, ecsMarkInfo.ServerType, ecsMarkInfo.ServerName, ecsMarkInfo.Owner, ecsMarkInfo.BusinessLine, ecsMarkInfo.Project).Set(pxDTO.P95)
+			ecs_cpu_usage_p99_data.WithLabelValues(ecsMarkInfo.Status, ecsMarkInfo.RegionId, ecsMarkInfo.InstanceId, ecsMarkInfo.InstanceType, ecsMarkInfo.Applicant, ecsMarkInfo.Env, ecsMarkInfo.ServerType, ecsMarkInfo.ServerName, ecsMarkInfo.Owner, ecsMarkInfo.BusinessLine, ecsMarkInfo.Project).Set(pxDTO.P99)
+		}
+	}
+
+	wg.Done()
 }
