@@ -1,0 +1,20 @@
+# Enable the go modules feature
+
+export GO111MODULE=on
+
+# Set the GOPROXY environment variable
+
+export GOPROXY=https://goproxy.io
+
+#GO15VENDOREXPERIMENT=1
+
+export GOPATH=$HOME/go
+export PATH=$PATH:$GOPATH/bin
+
+export PushGatewayAddress=http://127.0.0.1:9091
+export RegionID=cn-zhangjiakou
+export AccessKeyID=
+export AccessKeySecret=
+
+export ECSCollectorConcurrent=1
+export ECSCollectorPageSize=100
